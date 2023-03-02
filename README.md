@@ -11,3 +11,9 @@ Example usage:
 ```bash
 python npm_verify.py -f chalk-5.2.0.tgz
 ```
+
+# 3. [IP checker](./ip_checker.py)
+A script for determining whether an IP address belongs to a country (based on abusepdb api)
+```bash
+python ip_checker.py -f ips.txt
+```
