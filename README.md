@@ -1,3 +1,6 @@
+![Python](https://img.shields.io/static/v1?label=python&message=3.x&color=brightgreen)
+![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)
+
 # 1. [Docker container verification](./docker_verify.py)
 This script will help you check the docker image (by calculating the manifest hash and layers) against the hash listed on the site (docker hub, quay, etc.).
 Example usage:

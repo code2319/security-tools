@@ -13,26 +13,28 @@ from typing import Tuple
 keys_url = "https://registry.npmjs.org/-/npm/v1/keys"
 
 
-def get_npm_keys(keys_url):
+def get_npm_keys(keys_url: str):
     keys_json = requests.get(keys_url).json()
     for key in keys_json["keys"]:
         keyid = key["keyid"]
         yield keyid, key
 
 
-def pack_dist(url) -> dict:
+def pack_dist(url: str) -> dict:
     dist = requests.get(url).json()
     return dist["dist"] if "dist" in dist else (url, requests.get(url).text)
 
 
-def get_sha256_package_digest(package_name, package_version, integrity) -> bytes:
+def get_sha256_package_digest(
+    package_name: str, package_version: str, integrity: str
+) -> bytes:
     # ${package.name}@${package.version}:${package.dist.integrity}
     return hashlib.sha256(
         f"{package_name}@{package_version}:{integrity}".encode("utf-8")
     ).digest()
 
 
-def get_file_sha512(filename) -> bytes:
+def get_file_sha512(filename: str) -> bytes:
     md = hashlib.sha512()
     with open(filename, "rb") as f:
         for chunk in iter(lambda: f.read(4096), b""):
@@ -55,22 +57,22 @@ def get_pack_name_and_ver(packet: str) -> Tuple[str, str]:
         return pack_name, pack_ver
 
 
-def compare_hashes(file, calculated_hash, hash_from_registry) -> str:
+def compare_hashes(file: str, calculated_hash: str, hash_from_registry: str) -> str:
     if calculated_hash != hash_from_registry:
         return (
-            f"{colorama.Fore.RED}Wrong hash!{colorama.Style.RESET_ALL}\n"
+            f"\n{colorama.Fore.RED}Wrong hash!{colorama.Style.RESET_ALL}\n"
             f"{'Got': <8} {calculated_hash}\n"
-            f"Expected {hash_from_registry}"
+            f"Expected {hash_from_registry}\n"
         )
     else:
         return (
-            f"{colorama.Fore.GREEN}OK.{colorama.Style.RESET_ALL}\n"
+            f"\n{colorama.Fore.GREEN}OK.{colorama.Style.RESET_ALL}\n"
             f"Hash of {os.path.basename(file)} checked!\n"
-            f"{os.path.basename(file)}: {calculated_hash}"
+            f"{os.path.basename(file)}: {calculated_hash}\n"
         )
 
 
-def check_sig(file, dist, digest) -> str:
+def check_sig(file: str, dist: str, digest: str) -> str:
     keys = dict(get_npm_keys(keys_url))
 
     for sig in dist["signatures"]:
@@ -93,9 +95,9 @@ def check_sig(file, dist, digest) -> str:
                 )
 
 
-def main(file):
+def main(file: str):
     pack_name, pack_ver = get_pack_name_and_ver(file)
-    
+
     snyk_pack_name = pack_name.replace("/", "%2F") if "/" in pack_name else pack_name
 
     url = f"https://registry.npmjs.org/{pack_name}/{pack_ver}"
@@ -105,7 +107,7 @@ def main(file):
 
     if isinstance(dist, dict):
         print(
-            f"https://snyk.io/advisor/npm-package/{snyk_pack_name}/{pack_ver}"
+            f"https://snyk.io/advisor/npm-package/{snyk_pack_name}/{pack_ver}\n"
             + url
             + compare_hashes(file, file_hash_str, dist["integrity"])
             + "-" * 50
@@ -113,27 +115,25 @@ def main(file):
 
         digest = get_sha256_package_digest(pack_name, pack_ver, dist["integrity"])
 
-        print(check_sig(file, dist, digest) + "#" * 50)
+        print(check_sig(file, dist, digest) + "\n" + "#" * 50)
     else:
         print(os.path.basename(file), dist + "#" * 50)
 
 
 if __name__ == "__main__":
-    example_usage = r"""example:
-        python npm.py -f "C:\primereact-8.7.4.tgz"
-        python npm.py -p "C:\TODO"
-    """
     parser = argparse.ArgumentParser(
-        prog="npm",
-        epilog=example_usage,
+        usage="%(prog)s [options]",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--file", "-f", help="npm tarball file to verify")
-    parser.add_argument("--path", "-p", help="directory with tarball files")
+    parser.add_argument("-f", "--file", help=".tgz file to verify")
+    parser.add_argument("-p", "--path", help="directory with .tgz files")
     args = parser.parse_args()
 
     if args.file:
-        main(args.file)
+        if args.file.endswith(".tgz"):
+            main(args.file)
+        else:
+            print("ERROR. No .tgz files found.")
 
     elif args.path:
         files = [
@@ -141,6 +141,8 @@ if __name__ == "__main__":
             for f in os.listdir(args.path)
             if os.path.isfile(os.path.join(args.path, f)) and f.endswith(".tgz")
         ]
+        if len(files) == 0:
+            print("ERROR. No .tgz files found.")
         for file in files:
             main(os.path.join(args.path, file))
 
